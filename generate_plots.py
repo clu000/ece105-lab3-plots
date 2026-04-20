@@ -1,12 +1,14 @@
 """Generate publication-quality sensor data visualizations.
 
-This script creates synthetic temperature sensor data and produces a
-single PNG containing three subplots: scatter (time series), histogram,
-and boxplot. The main() function saves the combined figure as
-'sensor_analysis.png' at 150 DPI with a tight bounding box.
+This script creates synthetic temperature sensor data and produces a single
+PNG containing three subplots: scatter (time series), histogram, and boxplot.
+The main() function saves the combined figure as 'sensor_analysis.png' at
+150 DPI with a tight bounding box.
 """
 
+from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def generate_data(seed):
@@ -17,7 +19,7 @@ def generate_data(seed):
     seed : int or None
         Seed for NumPy's random number generator. If an integer is provided
         the results are deterministic and repeatable. If ``None``, the RNG is
-        seeded nondeterministically (from OS entropy) and outputs vary each run.
+        seeded nondeterministically and outputs vary each run.
 
     Returns
     -------
@@ -39,20 +41,7 @@ def generate_data(seed):
 def plot_scatter(ax, timestamps, sensor_a, sensor_b):
     """Draw a time-series scatter plot of two sensors on an Axes.
 
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes to modify in-place.
-    timestamps : numpy.ndarray, shape (N,)
-        Monotonic timestamps (s).
-    sensor_a : numpy.ndarray, shape (N,)
-        Sensor A temperatures (°C).
-    sensor_b : numpy.ndarray, shape (N,)
-        Sensor B temperatures (°C).
-
-    Returns
-    -------
-    None
+    The function modifies the provided Axes in place and returns None.
     """
     ax.scatter(timestamps, sensor_a, c="tab:blue", s=30, alpha=0.7,
                label="Sensor A (μ=25,σ=3)")
@@ -72,18 +61,7 @@ def plot_scatter(ax, timestamps, sensor_a, sensor_b):
 def plot_histogram(ax, sensor_a, sensor_b, bins=30):
     """Draw overlaid histograms for two sensors on an Axes.
 
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes to modify in-place.
-    sensor_a, sensor_b : numpy.ndarray, shape (N,)
-        Temperature samples for each sensor.
-    bins : int or array-like, optional
-        Number of bins or sequence of bin edges (default 30).
-
-    Returns
-    -------
-    None
+    Modifies ax in place and returns None.
     """
     all_min = float(min(np.min(sensor_a), np.min(sensor_b)))
     all_max = float(max(np.max(sensor_a), np.max(sensor_b)))
@@ -113,19 +91,10 @@ def plot_histogram(ax, sensor_a, sensor_b, bins=30):
 def plot_boxplot(ax, sensor_a, sensor_b):
     """Draw side-by-side boxplots comparing two sensors on an Axes.
 
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes to modify in-place.
-    sensor_a, sensor_b : numpy.ndarray
-        Temperature samples for each sensor.
-
-    Returns
-    -------
-    None
+    Modifies ax in place and returns None.
     """
     data = [sensor_a, sensor_b]
-    # Use tick_labels to avoid Matplotlib deprecation warning when available
+    # Use tick_labels when available to avoid deprecation warnings
     try:
         bp = ax.boxplot(data, tick_labels=["Sensor A", "Sensor B"],
                         patch_artist=True, notch=True, showmeans=True,
@@ -133,7 +102,6 @@ def plot_boxplot(ax, sensor_a, sensor_b):
                                        markerfacecolor="white", markersize=6),
                         widths=0.6)
     except TypeError:
-        # Older Matplotlib expects 'labels' keyword
         bp = ax.boxplot(data, labels=["Sensor A", "Sensor B"],
                         patch_artist=True, notch=True, showmeans=True,
                         meanprops=dict(marker="D", markeredgecolor="k",
@@ -163,34 +131,49 @@ def plot_boxplot(ax, sensor_a, sensor_b):
     return None
 
 
-def main(seed=5548):
-    """Generate data, create a 1x3 subplot figure, and save as sensor_analysis.png.
+def main(seed=5548, out_path='sensor_analysis.png'):
+    """Generate data, create a 2x2 subplot figure (three plots + one empty),
+    and save the combined figure to a single PNG file.
 
     Parameters
     ----------
     seed : int or None, optional
-        RNG seed for reproducible data (defaults to 5548).
+        RNG seed for reproducible synthetic data (default: 5548). If ``None``,
+        RNG is nondeterministic.
+    out_path : str or os.PathLike, optional
+        Output PNG path for the combined figure (default: 'sensor_analysis.png').
 
     Returns
     -------
     None
+        Writes the PNG to disk.
     """
-    import matplotlib.pyplot as plt
-    from pathlib import Path
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    out_path = Path("sensor_analysis.png")
     sensor_a, sensor_b, timestamps = generate_data(seed)
-    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(15, 4))
-    plot_scatter(axes[0], timestamps, sensor_a, sensor_b)
-    axes[0].set_title("Sensor readings over time")
-    plot_histogram(axes[1], sensor_a, sensor_b, bins=30)
-    axes[1].set_title("Temperature distribution")
-    plot_boxplot(axes[2], sensor_a, sensor_b)
-    axes[2].set_title("Distribution summary (boxplot)")
+
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
+    ax_scatter = axes[0, 0]
+    ax_hist = axes[0, 1]
+    ax_box = axes[1, 0]
+    ax_empty = axes[1, 1]
+
+    plot_scatter(ax_scatter, timestamps, sensor_a, sensor_b)
+    ax_scatter.set_title("Sensor readings over time")
+
+    plot_histogram(ax_hist, sensor_a, sensor_b, bins=30)
+    ax_hist.set_title("Temperature distribution")
+
+    plot_boxplot(ax_box, sensor_a, sensor_b)
+    ax_box.set_title("Distribution summary (boxplot)")
     try:
-        axes[2].legend(framealpha=0.9)
+        ax_box.legend(framealpha=0.9)
     except Exception:
         pass
+
+    ax_empty.axis('off')
+
     fig.tight_layout()
     fig.savefig(str(out_path), dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -198,4 +181,9 @@ def main(seed=5548):
 
 
 if __name__ == '__main__':
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description='Generate a single PNG with a 2x2 grid (three plots + one empty).')
+    parser.add_argument('--seed', type=int, default=5548, help='RNG seed (int) or omit for nondeterministic')
+    parser.add_argument('--out-path', default='sensor_analysis.png', help='Output PNG path')
+    args = parser.parse_args()
+    main(seed=args.seed, out_path=args.out_path)
